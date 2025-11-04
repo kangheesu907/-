@@ -1,19 +1,8 @@
-import os
-import subprocess
-import sys
-
-# ---------- google-generativeai 사전 설치 ----------
-try:
-    import google.generativeai as genai
-except ModuleNotFoundError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai==0.8.3"])
-    import google.generativeai as genai
-
-# ---------- 나머지 라이브러리 ----------
 import streamlit as st
 import pandas as pd
 import time
 from datetime import datetime
+import google.generativeai as genai
 
 # ---------- Gemini API 설정 ----------
 genai.configure(api_key="AIzaSyDVpKMT594xfTU2XGVrFo-tLk0y4TgxSMc")
@@ -85,6 +74,3 @@ if st.sidebar.button("🧹 대화 초기화"):
 
 st.sidebar.caption("세션 유지: 최근 6턴 이후 자동 리셋 (429 대응용)")
 st.sidebar.info(f"현재 모델: {model_choice}")
-
-
-
