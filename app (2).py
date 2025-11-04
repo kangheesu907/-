@@ -1,13 +1,22 @@
-import streamlit as st
-import google.generativeai as genai
-import pandas as pd
-from datetime import datetime
+import os
 import time
+import pandas as pd
+import streamlit as st
+from datetime import datetime
+
+# ---------------- 자동 설치 ----------------
+try:
+    import google.generativeai as genai
+except ModuleNotFoundError:
+    with st.spinner("필요한 라이브러리를 설치 중입니다... (약 1분 소요)"):
+        os.system("pip install google-generativeai==0.8.3")
+    import google.generativeai as genai
 
 # ---------------- 설정 ----------------
-genai.configure(api_key="AIzaSyDVpKMT594xfTU2XGVrFo-tLk0y4TgxSMc")
+API_KEY = "AIzaSyDVpKMT594xfTU2XGVrFo-tLk0y4TgxSMc"
+genai.configure(api_key=API_KEY)
 
-SYSTEM_PROMPT = """당신은 고객 응대 전문 상담사입니다. 
+SYSTEM_PROMPT = """당신은 고객 응대 전문 상담사입니다.
 1) 사용자는 불안감 해소를 위한 다양한 고민들을 언급합니다. 친근하고, 공감 어린 말투로 응답하세요.
 2) 사용자의 감정을 구체적으로 정리하여(무엇이/언제/어디서/어떻게) 수집하고, 고객에게 맞는 고민과 요구사항을 안내하세요.
 3) 마지막에는 “더 많은 상담소와 전화번호 등을 보내드릴까요?”라고 물어보세요. 
@@ -27,20 +36,14 @@ model_choice = st.selectbox(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# CSV 저장 옵션
 save_csv = st.sidebar.checkbox("대화 자동 CSV 저장", value=False)
 
 # ---------------- 챗봇 함수 ----------------
 def chat_with_gemini(prompt):
     try:
-        model = genai.GenerativeModel(
-            model_name=model_choice,
-            system_instruction=SYSTEM_PROMPT
-        )
-        # 최근 6턴까지만 유지 (429 방지용)
-        recent_history = st.session_state.messages[-6:] if len(st.session_state.messages) > 6 else st.session_state.messages
-        chat = model.start_chat(history=[
-            {"role": msg["role"], "parts": [msg["content"]]} for msg in recent_history
-        ])
+        model = genai.GenerativeModel(model_choice, system_instruction=SYSTEM_PROMPT)
+        chat = model.start_chat(history=[])
         response = chat.send_message(prompt)
         return response.text
     except Exception as e:
@@ -64,6 +67,7 @@ if user_input := st.chat_input("고객님의 고민을 말씀해주세요."):
 
     st.session_state.messages.append({"role": "assistant", "content": response})
 
+    # CSV 자동 저장
     if save_csv:
         df = pd.DataFrame(st.session_state.messages)
         df.to_csv("chat_log.csv", index=False)
@@ -82,4 +86,5 @@ if st.sidebar.button("🧹 대화 초기화"):
 
 st.sidebar.caption("세션 유지: 최근 6턴 이후 자동 리셋 (429 대응용)")
 st.sidebar.info(f"현재 모델: {model_choice}")
+
 
