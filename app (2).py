@@ -27,14 +27,20 @@ model_choice = st.selectbox(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# CSV 저장 옵션
 save_csv = st.sidebar.checkbox("대화 자동 CSV 저장", value=False)
 
 # ---------------- 챗봇 함수 ----------------
 def chat_with_gemini(prompt):
     try:
-        model = genai.GenerativeModel(model_choice, system_instruction=SYSTEM_PROMPT)
-        chat = model.start_chat(history=[])
+        model = genai.GenerativeModel(
+            model_name=model_choice,
+            system_instruction=SYSTEM_PROMPT
+        )
+        # 최근 6턴까지만 유지 (429 방지용)
+        recent_history = st.session_state.messages[-6:] if len(st.session_state.messages) > 6 else st.session_state.messages
+        chat = model.start_chat(history=[
+            {"role": msg["role"], "parts": [msg["content"]]} for msg in recent_history
+        ])
         response = chat.send_message(prompt)
         return response.text
     except Exception as e:
@@ -42,7 +48,7 @@ def chat_with_gemini(prompt):
         time.sleep(2)
         return "죄송합니다. 잠시 후 다시 시도해주세요."
 
-# ---------------- 대화 ----------------
+# ---------------- 대화 UI ----------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -58,7 +64,6 @@ if user_input := st.chat_input("고객님의 고민을 말씀해주세요."):
 
     st.session_state.messages.append({"role": "assistant", "content": response})
 
-    # CSV 자동 저장
     if save_csv:
         df = pd.DataFrame(st.session_state.messages)
         df.to_csv("chat_log.csv", index=False)
@@ -77,3 +82,4 @@ if st.sidebar.button("🧹 대화 초기화"):
 
 st.sidebar.caption("세션 유지: 최근 6턴 이후 자동 리셋 (429 대응용)")
 st.sidebar.info(f"현재 모델: {model_choice}")
+
