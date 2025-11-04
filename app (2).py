@@ -1,20 +1,22 @@
 import os
-import time
-import pandas as pd
-import streamlit as st
-from datetime import datetime
+import subprocess
+import sys
 
-# ---------------- 자동 설치 ----------------
+# ---------- google-generativeai 사전 설치 ----------
 try:
     import google.generativeai as genai
 except ModuleNotFoundError:
-    with st.spinner("필요한 라이브러리를 설치 중입니다... (약 1분 소요)"):
-        os.system("pip install google-generativeai==0.8.3")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai==0.8.3"])
     import google.generativeai as genai
 
-# ---------------- 설정 ----------------
-API_KEY = "AIzaSyDVpKMT594xfTU2XGVrFo-tLk0y4TgxSMc"
-genai.configure(api_key=API_KEY)
+# ---------- 나머지 라이브러리 ----------
+import streamlit as st
+import pandas as pd
+import time
+from datetime import datetime
+
+# ---------- Gemini API 설정 ----------
+genai.configure(api_key="AIzaSyDVpKMT594xfTU2XGVrFo-tLk0y4TgxSMc")
 
 SYSTEM_PROMPT = """당신은 고객 응대 전문 상담사입니다.
 1) 사용자는 불안감 해소를 위한 다양한 고민들을 언급합니다. 친근하고, 공감 어린 말투로 응답하세요.
@@ -23,7 +25,7 @@ SYSTEM_PROMPT = """당신은 고객 응대 전문 상담사입니다.
    만일 사용자가 원치 않으면 “당신의 모든 고민들을 들어드릴게요, 다음에 또 편하게 말해주세요.”라고 정중히 안내하세요.
 """
 
-# ---------------- Streamlit UI ----------------
+# ---------- Streamlit UI ----------
 st.set_page_config(page_title="AI 고객 상담 챗봇", page_icon="💬", layout="wide")
 st.title("💬 Gemini 기반 AI 고객 상담 챗봇")
 
@@ -36,10 +38,9 @@ model_choice = st.selectbox(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# CSV 저장 옵션
 save_csv = st.sidebar.checkbox("대화 자동 CSV 저장", value=False)
 
-# ---------------- 챗봇 함수 ----------------
+# ---------- 챗봇 함수 ----------
 def chat_with_gemini(prompt):
     try:
         model = genai.GenerativeModel(model_choice, system_instruction=SYSTEM_PROMPT)
@@ -47,11 +48,11 @@ def chat_with_gemini(prompt):
         response = chat.send_message(prompt)
         return response.text
     except Exception as e:
-        st.error(f"⚠️ 오류 발생: {str(e)}")
+        st.error(f"⚠️ 오류 발생: {e}")
         time.sleep(2)
         return "죄송합니다. 잠시 후 다시 시도해주세요."
 
-# ---------------- 대화 UI ----------------
+# ---------- 대화 UI ----------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -67,12 +68,10 @@ if user_input := st.chat_input("고객님의 고민을 말씀해주세요."):
 
     st.session_state.messages.append({"role": "assistant", "content": response})
 
-    # CSV 자동 저장
     if save_csv:
-        df = pd.DataFrame(st.session_state.messages)
-        df.to_csv("chat_log.csv", index=False)
+        pd.DataFrame(st.session_state.messages).to_csv("chat_log.csv", index=False)
 
-# ---------------- 로그 관리 ----------------
+# ---------- 로그 관리 ----------
 st.sidebar.download_button(
     label="📥 대화 로그 다운로드 (CSV)",
     data=pd.DataFrame(st.session_state.messages).to_csv(index=False),
@@ -86,5 +85,6 @@ if st.sidebar.button("🧹 대화 초기화"):
 
 st.sidebar.caption("세션 유지: 최근 6턴 이후 자동 리셋 (429 대응용)")
 st.sidebar.info(f"현재 모델: {model_choice}")
+
 
 
